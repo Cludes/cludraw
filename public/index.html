@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Cludraw - a shared canvas</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span> Cludraw</div>
+    <div class="meta"><span id="status" class="off">connecting…</span> · <b id="online">0</b> online · resets daily 00:00 UTC</div>
+  </header>
+
+  <main><canvas id="c" width="128" height="128"></canvas></main>
+
+  <div class="palette" id="palette"></div>
+  <p class="hint">Click or drag to draw on the shared canvas. Be nice - everyone sees it and it wipes once a day.</p>
+
+  <script src="app.js"></script>
+</body>
+</html>
