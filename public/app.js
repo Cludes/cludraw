@@ -52,18 +52,38 @@ $('picker').addEventListener('input', e => setColor(e.target.value, null));
 $('eraser').addEventListener('click', () => { curHex = '#ffffff'; document.querySelectorAll('.sw').forEach(s => s.classList.remove('on')); $('eraser').classList.add('on'); });
 $('vote').addEventListener('click', () => { if (ws && ws.readyState === 1) { ws.send(JSON.stringify({ t: 'vote' })); voted = !voted; $('vote').classList.toggle('voted', voted); } });
 
-let ws = null;
+// ── identity / presence / safety ──
+const BAD = ['fuck', 'shit', 'cunt', 'bitch', 'bastard', 'dick', 'cock', 'pussy', 'whore', 'slut', 'nigger', 'nigga', 'faggot', 'fag', 'retard', 'rape', 'nazi', 'hitler', 'kike', 'spic', 'chink', 'wetback', 'tranny', 'pedo', 'cum', 'penis', 'vagina', 'porn', 'sex', 'anus', 'asshole'];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function nameOk(n) { n = n.trim(); if (n.length < 1 || n.length > 16 || !/^[\w \-]+$/.test(n)) return false; const low = n.toLowerCase().replace(/[\s_\-]/g, ''); for (const w of BAD) if (low.includes(w)) return false; return true; }
+function renderPresence(users) { $('sbcount').textContent = users.length; $('sblist').innerHTML = users.map(u => `<li><span class="uname">${esc(u.n)}</span><span class="uctry">${esc(u.c || '')}</span></li>`).join(''); }
+
+let ws = null, myName = '', banned = false;
 function connect() {
-  ws = new WebSocket((location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws');
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws?name=' + encodeURIComponent(myName));
   ws.onopen = () => { $('status').textContent = 'live'; $('status').className = 'on'; };
-  ws.onclose = () => { $('status').textContent = 'reconnecting…'; $('status').className = 'off'; setTimeout(connect, 1500); };
+  ws.onclose = () => { if (banned) return; $('status').textContent = 'reconnecting…'; $('status').className = 'off'; setTimeout(connect, 1500); };
   ws.onmessage = ev => {
     const d = JSON.parse(ev.data);
-    if (d.t === 'init') { brushes = d.brushes; if (!brushes.includes(curW)) curW = brushes[1] || brushes[0]; buildUI(d.swatches); }
+    if (d.t === 'init') { brushes = d.brushes; if (!brushes.includes(curW)) curW = brushes[1] || brushes[0]; buildUI(d.swatches); if (d.you) $('me').textContent = d.you.name; }
     else if (d.t === 'load') { for (const s of d.strokes) full(s.c, s.w, s.p); }
     else if (d.t === 's') { let st = active.get(d.id); if (!st) { st = { c: d.c, w: d.w, has: false }; active.set(d.id, st); } seg(st, d.p); }
     else if (d.t === 'n') { $('online').textContent = d.online; $('votecount').textContent = d.votes + '/' + d.need; }
+    else if (d.t === 'presence') renderPresence(d.users);
     else if (d.t === 'reset') { clear(); active.clear(); voted = false; $('vote').classList.remove('voted'); }
+    else if (d.t === 'banned') { banned = true; try { ws.close(); } catch {} $('blocked').classList.remove('hidden'); }
   };
 }
-connect();
+
+$('report').addEventListener('click', () => { if (ws && ws.readyState === 1) { ws.send(JSON.stringify({ t: 'report' })); const r = $('report'), o = r.textContent; r.textContent = 'Reported'; r.disabled = true; setTimeout(() => { r.textContent = o; r.disabled = false; }, 2500); } });
+
+function join() {
+  const v = $('nameinput').value.trim();
+  if (!nameOk(v)) { $('nameerr').textContent = 'Pick a clean name (1-16 letters, numbers, spaces).'; return; }
+  myName = v; try { localStorage.setItem('cludraw-name', v); } catch {}
+  $('gate').classList.add('hidden'); connect();
+}
+$('join').addEventListener('click', join);
+$('nameinput').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+try { const s = localStorage.getItem('cludraw-name'); if (s) $('nameinput').value = s; } catch {}
+$('nameinput').focus();

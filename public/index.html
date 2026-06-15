@@ -7,28 +7,37 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div id="gate" class="gate">
+    <div class="gatebox">
+      <div class="brand"><span class="dot"></span> Cludraw</div>
+      <p class="g1">Pick a name to join the shared canvas.</p>
+      <input id="nameinput" maxlength="16" placeholder="your name" autocomplete="off" spellcheck="false" />
+      <div id="nameerr" class="nameerr"></div>
+      <button id="join">Join the canvas</button>
+      <p class="fine">It's a public shared board - be respectful. Abuse is logged and removed, and it wipes daily.</p>
+    </div>
+  </div>
+
   <header>
     <div class="brand"><span class="dot"></span> Cludraw</div>
-    <div class="meta"><span id="status" class="off">connecting…</span><span class="sep">·</span><b id="online">0</b> drawing<span class="sep">·</span>resets daily 00:00 UTC</div>
+    <div class="meta"><span id="status" class="off">connecting…</span><span class="sep">·</span><b id="online">0</b> online<span class="sep">·</span>you: <b id="me">…</b><span class="sep">·</span>resets daily</div>
   </header>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sb-h">Online <b id="sbcount">0</b></div>
+    <ul id="sblist"></ul>
+  </aside>
 
   <main><canvas id="c" width="160" height="160"></canvas></main>
 
   <div class="bar">
-    <div class="sec">
-      <span class="lbl">Brush</span>
-      <div id="brushes" class="brushes"></div>
-      <button id="eraser" class="tool" title="Erase">Eraser</button>
-    </div>
-    <div class="sec colors">
-      <div id="swatches" class="swatches"></div>
-      <label class="picker" title="Custom colour"><input type="color" id="picker" value="#e50000" /></label>
-    </div>
-    <div class="sec">
-      <button id="vote" class="tool vote">Vote to wipe <span id="votecount">0/2</span></button>
-    </div>
+    <div class="sec"><span class="lbl">Brush</span><div id="brushes" class="brushes"></div><button id="eraser" class="tool" title="Erase">Eraser</button></div>
+    <div class="sec colors"><div id="swatches" class="swatches"></div><label class="picker" title="Custom colour"><input type="color" id="picker" value="#e50000" /></label></div>
+    <div class="sec"><button id="report" class="tool" title="Report bad content">Report</button><button id="vote" class="tool vote">Vote to wipe <span id="votecount">0/2</span></button></div>
   </div>
   <p class="hint">Click or drag to draw together. Be nice - it's shared, and it wipes daily (or when enough people vote).</p>
+
+  <div id="blocked" class="gate hidden"><div class="gatebox"><div class="brand"><span class="dot"></span> Cludraw</div><p class="g1">You've been blocked from the canvas.</p><p class="fine">This was likely due to inappropriate drawing on the shared board.</p></div></div>
 
   <script src="app.js"></script>
 </body>
