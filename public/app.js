@@ -8,6 +8,13 @@ view.width = CW; view.height = CH;
 function clear() { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, CW, CH); }
 clear();
 
+function updateCursor() {
+  const d = Math.max(6, Math.round(curW * view.clientWidth / 1000)); // brush diameter in display px
+  const sz = d + 4, c = sz / 2, r = d / 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}"><circle cx="${c}" cy="${c}" r="${r}" fill="rgba(0,0,0,.05)" stroke="#fff" stroke-width="2.5"/><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#000" stroke-width="1"/></svg>`;
+  view.style.cursor = `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${c} ${c}, crosshair`;
+}
+addEventListener('resize', updateCursor);
 function style(c, w) { ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = w * SCALE; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; }
 function seg(st, p) {
   style(st.c, st.w); let i = 0;
@@ -29,7 +36,8 @@ function buildUI(swatches) {
   const sc = $('swatches'); sc.innerHTML = '';
   swatches.forEach(hex => { const b = document.createElement('button'); b.className = 'sw'; b.style.background = hex; b.title = hex; b.onclick = () => setColor(hex, b); sc.appendChild(b); });
   const bz = $('brushes'); bz.innerHTML = '';
-  brushes.forEach(w => { const b = document.createElement('button'); b.className = 'bz' + (w === curW ? ' on' : ''); const d = Math.min(24, 4 + w * 0.7); b.innerHTML = `<span class="ball" style="width:${d}px;height:${d}px"></span>`; b.title = w; b.onclick = () => { curW = w; document.querySelectorAll('.bz').forEach(x => x.classList.remove('on')); b.classList.add('on'); }; bz.appendChild(b); });
+  brushes.forEach(w => { const b = document.createElement('button'); b.className = 'bz' + (w === curW ? ' on' : ''); const d = Math.min(24, 4 + w * 0.7); b.innerHTML = `<span class="ball" style="width:${d}px;height:${d}px"></span>`; b.title = w; b.onclick = () => { curW = w; document.querySelectorAll('.bz').forEach(x => x.classList.remove('on')); b.classList.add('on'); updateCursor(); }; bz.appendChild(b); });
+  updateCursor();
 }
 
 function pt(e) { const r = view.getBoundingClientRect(); let x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; x = x < 0 ? 0 : x > 1 ? 1 : x; y = y < 0 ? 0 : y > 1 ? 1 : y; return [Math.round(x * 1e4) / 1e4, Math.round(y * 1e4) / 1e4]; }
