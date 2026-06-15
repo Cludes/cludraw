@@ -7,7 +7,7 @@ header { width: 100%; display: flex; align-items: center; justify-content: space
 .meta { color: var(--dim); font-size: 12.5px; display: flex; align-items: center; gap: 7px; } .meta b { color: var(--text); } .meta .sep { opacity: .4; }
 #status.on { color: #34d399; } #status.off { color: #fbbf24; }
 main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 18px; width: 100%; }
-#c { width: min(88vw, 64vh); height: min(88vw, 64vh); image-rendering: pixelated; background: #fff; border: 1px solid var(--border2); border-radius: 8px; cursor: crosshair; touch-action: none; box-shadow: 0 26px 80px -28px #000; }
+#c { width: min(88vw, 64vh); height: min(88vw, 64vh); background: #fff; border: 1px solid var(--border2); border-radius: 8px; cursor: crosshair; touch-action: none; box-shadow: 0 26px 80px -28px #000; }
 
 .bar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin: 0 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 940px; }
 .sec { display: flex; align-items: center; gap: 9px; }
