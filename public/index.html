@@ -9,13 +9,26 @@
 <body>
   <header>
     <div class="brand"><span class="dot"></span> Cludraw</div>
-    <div class="meta"><span id="status" class="off">connecting…</span> · <b id="online">0</b> online · resets daily 00:00 UTC</div>
+    <div class="meta"><span id="status" class="off">connecting…</span><span class="sep">·</span><b id="online">0</b> drawing<span class="sep">·</span>resets daily 00:00 UTC</div>
   </header>
 
-  <main><canvas id="c" width="128" height="128"></canvas></main>
+  <main><canvas id="c" width="160" height="160"></canvas></main>
 
-  <div class="palette" id="palette"></div>
-  <p class="hint">Click or drag to draw on the shared canvas. Be nice - everyone sees it and it wipes once a day.</p>
+  <div class="bar">
+    <div class="sec">
+      <span class="lbl">Brush</span>
+      <div id="brushes" class="brushes"></div>
+      <button id="eraser" class="tool" title="Erase">Eraser</button>
+    </div>
+    <div class="sec colors">
+      <div id="swatches" class="swatches"></div>
+      <label class="picker" title="Custom colour"><input type="color" id="picker" value="#e50000" /></label>
+    </div>
+    <div class="sec">
+      <button id="vote" class="tool vote">Vote to wipe <span id="votecount">0/2</span></button>
+    </div>
+  </div>
+  <p class="hint">Click or drag to draw together. Be nice - it's shared, and it wipes daily (or when enough people vote).</p>
 
   <script src="app.js"></script>
 </body>

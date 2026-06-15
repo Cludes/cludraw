@@ -1,33 +1,31 @@
 # Cludraw
 
-A hosted shared pixel canvas - everyone draws on the same board in real time, and it persists. Drag to draw with a 16-colour palette. The canvas resets daily at 00:00 UTC.
+A hosted shared canvas - everyone draws on the same board in real time, and it persists. Live at **https://cludraw.pages.dev**.
 
-## How it works
+Drag to draw with brush sizes, a 28-colour palette + a custom colour picker (any colour), and an eraser. The board resets daily at 00:00 UTC, or sooner if enough people **vote to wipe** it.
 
-- A single **Cloudflare Worker + Durable Object** runs the whole thing - no separate database.
-- The Durable Object (`Canvas`) holds the 128x128 grid in memory, **broadcasts each edit over WebSockets** to everyone connected, and **persists the grid to its own storage** (so it survives restarts/redeploys).
-- New visitors receive the full grid on connect (sent as a binary blob), then live `{x, y, colour}` updates.
-- A per-connection **token-bucket rate limit** (~50 px/sec) allows smooth drawing while stopping flood scripts.
-- A **daily reset** is driven by a Durable Object alarm at midnight UTC (plus a lazy check on load).
+## Architecture
 
-## Run locally
+`.pages.dev` is a Cloudflare **Pages** URL, but the realtime engine is a **Durable Object** (a Worker feature), so it's two pieces:
 
-```
-npx wrangler dev
-```
+- **`do/`** - a companion Worker (`cludraw-do`, `workers_dev: false`, no public URL) that defines the `Canvas` Durable Object: holds the 160x160 RGB grid in memory, broadcasts edits over WebSockets, persists the grid to its own storage (no separate database), and resets daily via an alarm. It also tallies **vote-to-wipe** votes.
+- **Pages project (`cludraw`)** - serves the static frontend (`public/`) and a `/ws` Pages Function (`functions/ws.js`) that is **bound to the Durable Object** (`script_name: cludraw-do`). This is the public `cludraw.pages.dev`.
 
-Opens at http://localhost:8787 - the Durable Object and WebSockets are simulated locally (no Cloudflare login needed).
+New visitors get the full RGB grid as a binary blob on connect, then live `{x,y,r,g,b,s}` brush updates. A per-connection token-bucket rate limit (~300 px/sec) keeps drawing smooth while stopping flood scripts.
 
-## Deploy
+## Develop / deploy
 
 ```
-npx wrangler deploy
+# deploy the Durable Object worker first, then the Pages project
+cd do && npx wrangler deploy
+cd ..  && npx wrangler pages deploy
 ```
 
-Needs a Cloudflare API token (`CLOUDFLARE_API_TOKEN`) with Workers + Durable Objects permissions, or `wrangler login`. Durable Objects use the free-tier SQLite class (`new_sqlite_classes`).
+Needs a Cloudflare API token with Workers + Durable Objects + Pages permissions. CI: GitHub Action `.github/workflows/deploy.yml` deploys both on push (secrets `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`).
 
 ## Files
 
-- `src/worker.js` - the Worker entry + the `Canvas` Durable Object
-- `public/` - the static frontend (served via Workers Static Assets)
-- `wrangler.jsonc` - config (DO binding, migration, assets)
+- `do/worker.js` + `do/wrangler.jsonc` - the `Canvas` Durable Object host
+- `functions/ws.js` - the Pages Function that routes `/ws` to the DO
+- `public/` - the frontend (canvas, palette, brushes, vote UI)
+- `wrangler.jsonc` - the Pages config (assets dir + DO binding)
