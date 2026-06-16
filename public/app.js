@@ -50,14 +50,16 @@ requestAnimationFrame(tick);
 
 // ── remote cursors (you see others', never your own) ──
 let curT = 0;
-function sendCur(x, y) { const now = performance.now(); if (now - curT < 45) return; curT = now; if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'cur', x, y })); }
+function sendCur(x, y) { const now = performance.now(); if (now - curT < 45) return; curT = now; if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'cur', x, y, col: curHex })); }
 const cursors = new Map();
-function cursorEl(id, name) {
-  const hue = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360, col = `hsl(${hue},75%,55%)`;
-  const el = document.createElement('div'); el.className = 'rcur';
-  el.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 2 L2 15 L6 11 L9 17 L11.5 16 L8.5 10 L14 10 Z" fill="${col}" stroke="#fff" stroke-width="1"/></svg><span class="lab" style="background:${col}">${esc(name)}</span>`;
+const lum = h => (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255;
+const contrast = c => (/^#[0-9a-f]{6}$/i.test(c) && lum(c) > 0.62) ? '#111' : '#fff';
+function cursorEl(name, col) {
+  const el = document.createElement('div'); el.className = 'rcur'; const txt = contrast(col);
+  el.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 2 L2 15 L6 11 L9 17 L11.5 16 L8.5 10 L14 10 Z" fill="${col}" stroke="${txt}" stroke-width="1"/></svg><span class="lab" style="background:${col};color:${txt}">${esc(name)}</span>`;
   return el;
 }
+function recolor(c, col) { c.col = col; const p = c.el.querySelector('path'), l = c.el.querySelector('.lab'), txt = contrast(col); p.setAttribute('fill', col); p.setAttribute('stroke', txt); l.style.background = col; l.style.color = txt; }
 setInterval(() => { const now = performance.now(); for (const [id, c] of cursors) if (now - c.seen > 6000) { c.el.remove(); cursors.delete(id); } }, 2000);
 
 $('picker').addEventListener('input', e => setColor(e.target.value, null));
@@ -82,7 +84,7 @@ function connect() {
     else if (d.t === 's') { let st = active.get(d.id); if (!st) { st = { c: d.c, w: d.w, has: false }; active.set(d.id, st); } seg(st, d.p); }
     else if (d.t === 'n') { $('online').textContent = d.online; $('votecount').textContent = d.votes + '/' + d.need; }
     else if (d.t === 'presence') renderPresence(d.users);
-    else if (d.t === 'cur') { let c = cursors.get(d.id); if (!c) { c = { el: cursorEl(d.id, d.n) }; cursors.set(d.id, c); $('cursors').appendChild(c.el); } c.el.style.left = d.x * 100 + '%'; c.el.style.top = d.y * 100 + '%'; c.seen = performance.now(); }
+    else if (d.t === 'cur') { const col = d.col || '#000000'; let c = cursors.get(d.id); if (!c) { c = { el: cursorEl(d.n, col), col }; cursors.set(d.id, c); $('cursors').appendChild(c.el); } else if (col !== c.col) recolor(c, col); c.el.style.left = d.x * 100 + '%'; c.el.style.top = d.y * 100 + '%'; c.seen = performance.now(); }
     else if (d.t === 'curgone') { const c = cursors.get(d.id); if (c) { c.el.remove(); cursors.delete(d.id); } }
     else if (d.t === 'reset') { clear(); active.clear(); voted = false; $('vote').classList.remove('voted'); }
     else if (d.t === 'banned') { banned = true; try { ws.close(); } catch {} $('blocked').classList.remove('hidden'); }

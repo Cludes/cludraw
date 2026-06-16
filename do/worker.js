@@ -86,7 +86,7 @@ export class Canvas {
     } else if (d.t === 'e') { this.active.delete(d.id); }
     else if (d.t === 'vote') { att.voted = !att.voted; ws.serializeAttachment(att); this.tally(); }
     else if (d.t === 'report') { this.reports.push({ ts: Date.now(), by: att.ip, name: att.name }); if (this.reports.length > 300) this.reports.shift(); this.state.storage.put('reports', this.reports); }
-    else if (d.t === 'cur') { const x = +d.x, y = +d.y; if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return; const out = JSON.stringify({ t: 'cur', id: att.cid, n: att.name, x, y }); for (const s of this.state.getWebSockets()) if (s !== ws) { try { s.send(out); } catch {} } }
+    else if (d.t === 'cur') { const x = +d.x, y = +d.y; if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return; const out = JSON.stringify({ t: 'cur', id: att.cid, n: att.name, x, y, col: sanitizeColor(d.col) }); for (const s of this.state.getWebSockets()) if (s !== ws) { try { s.send(out); } catch {} } }
   }
 
   webSocketClose(ws) { const a = ws.deserializeAttachment(); if (a && a.cid) this.broadcast({ t: 'curgone', id: a.cid }); this.announce(); this.presence(); }
