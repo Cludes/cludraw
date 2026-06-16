@@ -101,6 +101,7 @@ $('report').addEventListener('click', () => { if (ws && ws.readyState === 1) { w
 
 // rooms + download
 $('roomlabel').textContent = ROOM ? 'private room: ' + ROOM : 'public board';
+if (!ROOM) $('copylink').style.display = 'none';
 $('newroom').addEventListener('click', () => { location.href = location.pathname + '?room=' + Math.random().toString(36).slice(2, 8); });
 $('copylink').addEventListener('click', () => { navigator.clipboard.writeText(location.href).then(() => { const b = $('copylink'), o = b.textContent; b.textContent = 'Copied'; setTimeout(() => b.textContent = o, 1500); }).catch(() => {}); });
 $('savepng').addEventListener('click', () => { const a = document.createElement('a'); a.href = view.toDataURL('image/png'); a.download = 'cludraw' + (ROOM ? '-' + ROOM : '') + '.png'; a.click(); });
