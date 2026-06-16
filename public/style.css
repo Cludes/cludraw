@@ -22,7 +22,7 @@ main { flex: 1; display: flex; align-items: center; justify-content: center; pad
 
 .bar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin: 0 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 940px; }
 .sec { display: flex; align-items: center; gap: 9px; }
-.sec.colors { flex: 1; justify-content: center; min-width: 220px; }
+.sec.colors { order: 1; flex-basis: 100%; justify-content: center; }
 .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
 .brushes { display: flex; gap: 6px; }
 .bz { width: 34px; height: 34px; border-radius: 9px; background: var(--surface2); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
