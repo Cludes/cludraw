@@ -1,7 +1,7 @@
 'use strict';
 const CW = 1200, CH = 1200, SCALE = CW / 1000;
 let brushes = [3, 7, 14, 28], curW = 7, curHex = '#e50000', voted = false, drawing = false, curId = null, cur = null, buf = [], localN = 0;
-const active = new Map();
+const strokes = new Map(); let mine = [];
 const view = document.getElementById('c'), ctx = view.getContext('2d');
 const $ = id => document.getElementById(id);
 view.width = CW; view.height = CH;
@@ -17,6 +17,7 @@ function updateCursor() {
 addEventListener('resize', updateCursor);
 function style(c, w) { ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = w * SCALE; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; }
 function seg(st, p) {
+  for (let k = 0; k < p.length; k++) st.p.push(p[k]);
   style(st.c, st.w); let i = 0;
   if (!st.has) { const x = p[0] * CW, y = p[1] * CH; ctx.beginPath(); ctx.arc(x, y, st.w * SCALE / 2, 0, 7); ctx.fill(); st.lx = p[0]; st.ly = p[1]; st.has = true; i = 2; }
   ctx.beginPath(); ctx.moveTo(st.lx * CW, st.ly * CH);
@@ -30,6 +31,7 @@ function full(c, w, p) {
   for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] * CW, p[i + 1] * CH);
   ctx.stroke();
 }
+function renderAll() { clear(); for (const st of strokes.values()) full(st.c, st.w, st.p); }
 
 function setColor(hex, el) { curHex = hex; document.querySelectorAll('.sw').forEach(s => s.classList.remove('on')); $('eraser').classList.remove('on'); if (el) el.classList.add('on'); }
 function buildUI(swatches) {
@@ -42,9 +44,10 @@ function buildUI(swatches) {
 
 function pt(e) { const r = view.getBoundingClientRect(); let x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; x = x < 0 ? 0 : x > 1 ? 1 : x; y = y < 0 ? 0 : y > 1 ? 1 : y; return [Math.round(x * 1e4) / 1e4, Math.round(y * 1e4) / 1e4]; }
 function flush(end) { if (buf.length >= 2 && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 's', id: curId, c: cur.c, w: cur.w, p: buf })); buf = []; if (end && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'e', id: curId })); }
-view.addEventListener('pointerdown', e => { drawing = true; try { view.setPointerCapture(e.pointerId); } catch {} curId = 'L' + (localN++); cur = { c: curHex, w: curW, has: false }; active.set(curId, cur); const [x, y] = pt(e); sendCur(x, y); seg(cur, [x, y]); buf = [x, y]; });
+view.addEventListener('pointerdown', e => { drawing = true; try { view.setPointerCapture(e.pointerId); } catch {} curId = 'L' + (localN++); cur = { c: curHex, w: curW, p: [], has: false }; strokes.set(curId, cur); const [x, y] = pt(e); sendCur(x, y); seg(cur, [x, y]); buf = [x, y]; });
 view.addEventListener('pointermove', e => { const [x, y] = pt(e); sendCur(x, y); if (!drawing) return; seg(cur, [x, y]); buf.push(x, y); });
-addEventListener('pointerup', () => { if (!drawing) return; drawing = false; flush(true); });
+addEventListener('pointerup', () => { if (!drawing) return; drawing = false; flush(true); if (curId) { mine.push(curId); if (mine.length > 200) mine.shift(); } });
+addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); const id = mine.pop(); if (id && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'undo', id })); } });
 function tick() { if (drawing && buf.length >= 2) flush(false); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
 
@@ -61,6 +64,7 @@ function cursorEl(name, col) {
 }
 function recolor(c, col) { c.col = col; const p = c.el.querySelector('path'), l = c.el.querySelector('.lab'), txt = contrast(col); p.setAttribute('fill', col); p.setAttribute('stroke', txt); l.style.background = col; l.style.color = txt; }
 setInterval(() => { const now = performance.now(); for (const [id, c] of cursors) if (now - c.seen > 6000) { c.el.remove(); cursors.delete(id); } }, 2000);
+function trail(x, y, col) { const t = document.createElement('div'); t.className = 'trail'; t.style.left = x * 100 + '%'; t.style.top = y * 100 + '%'; t.style.background = col; $('cursors').appendChild(t); setTimeout(() => t.remove(), 650); }
 
 $('picker').addEventListener('input', e => setColor(e.target.value, null));
 $('eraser').addEventListener('click', () => { curHex = '#ffffff'; document.querySelectorAll('.sw').forEach(s => s.classList.remove('on')); $('eraser').classList.add('on'); });
@@ -70,7 +74,7 @@ $('vote').addEventListener('click', () => { if (ws && ws.readyState === 1) { ws.
 const BAD = ['fuck', 'shit', 'cunt', 'bitch', 'bastard', 'dick', 'cock', 'pussy', 'whore', 'slut', 'nigger', 'nigga', 'faggot', 'fag', 'retard', 'rape', 'nazi', 'hitler', 'kike', 'spic', 'chink', 'wetback', 'tranny', 'pedo', 'cum', 'penis', 'vagina', 'porn', 'sex', 'anus', 'asshole'];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function nameOk(n) { n = n.trim(); if (n.length < 1 || n.length > 16 || !/^[\w \-]+$/.test(n)) return false; const low = n.toLowerCase().replace(/[\s_\-]/g, ''); for (const w of BAD) if (low.includes(w)) return false; return true; }
-function renderPresence(users) { $('sbcount').textContent = users.length; $('sblist').innerHTML = users.map(u => `<li><span class="uname">${esc(u.n)}</span><span class="uctry">${esc(u.c || '')}</span></li>`).join(''); }
+function renderPresence(users) { $('sbcount').textContent = users.length; $('sblist').innerHTML = users.map(u => `<li><span class="cdot" style="background:${esc(u.col || '#888')}"></span><span class="uname">${esc(u.n)}</span><span class="uctry">${esc(u.c || '')}</span></li>`).join(''); }
 
 let ws = null, myName = '', banned = false;
 function connect() {
@@ -80,13 +84,14 @@ function connect() {
   ws.onmessage = ev => {
     const d = JSON.parse(ev.data);
     if (d.t === 'init') { brushes = d.brushes; if (!brushes.includes(curW)) curW = brushes[1] || brushes[0]; buildUI(d.swatches); if (d.you) $('me').textContent = d.you.name; }
-    else if (d.t === 'load') { for (const s of d.strokes) full(s.c, s.w, s.p); }
-    else if (d.t === 's') { let st = active.get(d.id); if (!st) { st = { c: d.c, w: d.w, has: false }; active.set(d.id, st); } seg(st, d.p); }
+    else if (d.t === 'load') { for (const s of d.strokes) { strokes.set(s.id, { c: s.c, w: s.w, p: s.p.slice(), has: false }); full(s.c, s.w, s.p); } }
+    else if (d.t === 's') { let st = strokes.get(d.id); if (!st) { st = { c: d.c, w: d.w, p: [], has: false }; strokes.set(d.id, st); } seg(st, d.p); }
     else if (d.t === 'n') { $('online').textContent = d.online; $('votecount').textContent = d.votes + '/' + d.need; }
     else if (d.t === 'presence') renderPresence(d.users);
-    else if (d.t === 'cur') { const col = d.col || '#000000'; let c = cursors.get(d.id); if (!c) { c = { el: cursorEl(d.n, col), col }; cursors.set(d.id, c); $('cursors').appendChild(c.el); } else if (col !== c.col) recolor(c, col); c.el.style.left = d.x * 100 + '%'; c.el.style.top = d.y * 100 + '%'; c.seen = performance.now(); }
+    else if (d.t === 'cur') { const col = d.col || '#000000'; let c = cursors.get(d.id); if (!c) { c = { el: cursorEl(d.n, col), col }; cursors.set(d.id, c); $('cursors').appendChild(c.el); } else if (col !== c.col) recolor(c, col); c.el.style.left = d.x * 100 + '%'; c.el.style.top = d.y * 100 + '%'; c.seen = performance.now(); trail(d.x, d.y, col); }
     else if (d.t === 'curgone') { const c = cursors.get(d.id); if (c) { c.el.remove(); cursors.delete(d.id); } }
-    else if (d.t === 'reset') { clear(); active.clear(); voted = false; $('vote').classList.remove('voted'); }
+    else if (d.t === 'undo') { strokes.delete(d.id); const k = mine.indexOf(d.id); if (k >= 0) mine.splice(k, 1); renderAll(); }
+    else if (d.t === 'reset') { clear(); strokes.clear(); mine = []; voted = false; $('vote').classList.remove('voted'); }
     else if (d.t === 'banned') { banned = true; try { ws.close(); } catch {} $('blocked').classList.remove('hidden'); }
   };
 }

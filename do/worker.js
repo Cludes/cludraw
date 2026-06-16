@@ -32,6 +32,7 @@ export class Canvas {
       this.sql.exec('CREATE TABLE IF NOT EXISTS blob(seq INTEGER PRIMARY KEY AUTOINCREMENT, part TEXT)');
       let jsonStr = ''; for (const r of this.sql.exec('SELECT part FROM blob ORDER BY seq')) jsonStr += r.part;
       if (jsonStr) { try { this.strokes = JSON.parse(jsonStr) || []; } catch { this.strokes = []; } }
+      for (const s of this.strokes) if (!s.id) s.id = 'x' + Math.random().toString(36).slice(2, 8);
       this.salt = await state.storage.get('salt');
       if (!this.salt) { this.salt = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16)).join(''); await state.storage.put('salt', this.salt); }
       this.banned = new Set(await state.storage.get('banned') || []);
@@ -50,10 +51,10 @@ export class Canvas {
       let name = cleanName(url.searchParams.get('name')); if (!name) name = 'anon' + Math.floor(Math.random() * 900 + 100);
       const { 0: client, 1: server } = new WebSocketPair();
       this.state.acceptWebSocket(server);
-      server.serializeAttachment({ ip, name, country, tok: RL_CAP, ts: Date.now(), voted: false, cid: Math.random().toString(36).slice(2, 8) });
+      server.serializeAttachment({ ip, name, country, tok: RL_CAP, ts: Date.now(), voted: false, cid: Math.random().toString(36).slice(2, 8), col: '#e50000' });
       if (this.banned.has(ip)) { try { server.send(JSON.stringify({ t: 'banned' })); server.close(4003, 'banned'); } catch {} return new Response(null, { status: 101, webSocket: client }); }
       server.send(JSON.stringify({ t: 'init', swatches: SWATCHES, brushes: BRUSHES, you: { name, country } }));
-      for (let i = 0; i < this.strokes.length; i += 350) server.send(JSON.stringify({ t: 'load', strokes: this.strokes.slice(i, i + 350).map(s => ({ c: s.c, w: s.w, p: s.p })) }));
+      for (let i = 0; i < this.strokes.length; i += 350) server.send(JSON.stringify({ t: 'load', strokes: this.strokes.slice(i, i + 350).map(s => ({ id: s.id, c: s.c, w: s.w, p: s.p })) }));
       server.send(JSON.stringify({ t: 'loaded' }));
       this.announce(); this.presence();
       return new Response(null, { status: 101, webSocket: client });
@@ -71,19 +72,22 @@ export class Canvas {
       const np = d.p.length / 2, now = Date.now();
       att.tok = Math.min(RL_CAP, (att.tok ?? RL_CAP) + (now - (att.ts || now)) / 1000 * RL_RATE); att.ts = now;
       if (att.tok < np) { ws.serializeAttachment(att); return; }
-      att.tok -= np; ws.serializeAttachment(att);
+      att.tok -= np;
       let st = this.active.get(d.id);
       if (!st) {
-        st = { c: sanitizeColor(d.c), w: clampW(d.w), p: [], ip: att.ip };
+        st = { id: d.id, c: sanitizeColor(d.c), w: clampW(d.w), p: [], ip: att.ip };
         this.active.set(d.id, st); this.strokes.push(st);
         if (this.strokes.length > MAX_STROKES) this.strokes.shift();
         if (this.active.size > 3000) this.active.clear();
       }
+      const colChanged = att.col !== st.c; att.col = st.c; ws.serializeAttachment(att);
       for (let i = 0; i < d.p.length; i++) { const v = +d.p[i]; st.p.push(v < 0 ? 0 : v > 1 ? 1 : v || 0); }
       this.schedulePersist();
       const out = JSON.stringify({ t: 's', id: d.id, c: st.c, w: st.w, p: d.p });
       for (const s of this.state.getWebSockets()) if (s !== ws) { try { s.send(out); } catch {} }
+      if (colChanged) this.presence();
     } else if (d.t === 'e') { this.active.delete(d.id); }
+    else if (d.t === 'undo') { const i = this.strokes.findIndex(s => s.id === d.id && s.ip === att.ip); if (i >= 0) { this.strokes.splice(i, 1); this.active.delete(d.id); this.schedulePersist(); this.broadcast({ t: 'undo', id: d.id }); } }
     else if (d.t === 'vote') { att.voted = !att.voted; ws.serializeAttachment(att); this.tally(); }
     else if (d.t === 'report') { this.reports.push({ ts: Date.now(), by: att.ip, name: att.name }); if (this.reports.length > 300) this.reports.shift(); this.state.storage.put('reports', this.reports); }
     else if (d.t === 'cur') { const x = +d.x, y = +d.y; if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return; const out = JSON.stringify({ t: 'cur', id: att.cid, n: att.name, x, y, col: sanitizeColor(d.col) }); for (const s of this.state.getWebSockets()) if (s !== ws) { try { s.send(out); } catch {} } }
@@ -93,7 +97,7 @@ export class Canvas {
   webSocketError() { this.announce(); }
 
   broadcast(o) { const m = JSON.stringify(o); for (const s of this.state.getWebSockets()) { try { s.send(m); } catch {} } }
-  presence() { const users = this.state.getWebSockets().map(s => { const a = s.deserializeAttachment() || {}; return { n: a.name || '?', c: a.country || '??' }; }); this.broadcast({ t: 'presence', users }); }
+  presence() { const users = this.state.getWebSockets().map(s => { const a = s.deserializeAttachment() || {}; return { n: a.name || '?', c: a.country || '??', col: a.col || '#e50000' }; }); this.broadcast({ t: 'presence', users }); }
   voteState() { const all = this.state.getWebSockets(); let v = 0; for (const s of all) { const a = s.deserializeAttachment(); if (a && a.voted) v++; } return { votes: v, online: all.length, need: Math.max(2, Math.ceil(all.length * 0.6)) }; }
   announce() { const v = this.voteState(); this.broadcast({ t: 'n', online: v.online, votes: v.votes, need: v.need }); }
   tally() { const v = this.voteState(); if (v.votes >= v.need) { this.clearVotes(); this.reset(true); this.broadcast({ t: 'n', online: v.online, votes: 0, need: v.need }); } else this.broadcast({ t: 'n', online: v.online, votes: v.votes, need: v.need }); }
@@ -107,7 +111,7 @@ export class Canvas {
     this.day = todayUTC(); await this.state.storage.put('day', this.day);
     if (broadcast) this.broadcast({ t: 'reset' });
   }
-  resync() { this.broadcast({ t: 'reset' }); for (let i = 0; i < this.strokes.length; i += 350) { const c = JSON.stringify({ t: 'load', strokes: this.strokes.slice(i, i + 350).map(s => ({ c: s.c, w: s.w, p: s.p })) }); for (const s of this.state.getWebSockets()) { try { s.send(c); } catch {} } } }
+  resync() { this.broadcast({ t: 'reset' }); for (let i = 0; i < this.strokes.length; i += 350) { const c = JSON.stringify({ t: 'load', strokes: this.strokes.slice(i, i + 350).map(s => ({ id: s.id, c: s.c, w: s.w, p: s.p })) }); for (const s of this.state.getWebSockets()) { try { s.send(c); } catch {} } } }
   kick(ip) { for (const s of this.state.getWebSockets()) { const a = s.deserializeAttachment(); if (a && a.ip === ip) { try { s.send(JSON.stringify({ t: 'banned' })); s.close(4003, 'banned'); } catch {} } } }
   async alarm() { await this.reset(true); await this.state.storage.setAlarm(nextMidnightUTC()); }
 
