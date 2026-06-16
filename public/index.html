@@ -25,7 +25,8 @@
 
   <header>
     <div class="brand"><span class="dot"></span> Cludraw</div>
-    <div class="meta"><span id="status" class="off">connecting…</span><span class="sep">·</span><b id="online">0</b> online<span class="sep">·</span>you: <b id="me">…</b><span class="sep">·</span>resets daily</div>
+    <div class="meta"><span id="status" class="off">connecting…</span><span class="sep">·</span><b id="online">0</b> online<span class="sep">·</span>you: <b id="me">…</b></div>
+    <div class="rooms"><span id="roomlabel">public board</span><button id="newroom" class="hbtn">New private room</button><button id="copylink" class="hbtn">Copy link</button></div>
   </header>
 
   <aside id="sidebar" class="sidebar">
@@ -33,12 +34,12 @@
     <ul id="sblist"></ul>
   </aside>
 
-  <main><div class="stage"><canvas id="c" width="160" height="160"></canvas><div id="cursors"></div></div></main>
+  <main><div class="stage"><canvas id="c" width="1500" height="1500"></canvas><div id="cursors"></div></div></main>
 
   <div class="bar">
     <div class="sec"><span class="lbl">Brush</span><div id="brushes" class="brushes"></div><button id="eraser" class="tool" title="Erase">Eraser</button></div>
     <div class="sec colors"><div id="swatches" class="swatches"></div><label class="picker" title="Custom colour"><input type="color" id="picker" value="#e50000" /></label></div>
-    <div class="sec"><button id="report" class="tool" title="Report bad content">Report</button><button id="vote" class="tool vote">Vote to wipe <span id="votecount">0/2</span></button></div>
+    <div class="sec"><button id="savepng" class="tool" title="Download as PNG">Save PNG</button><button id="report" class="tool" title="Report bad content">Report</button><button id="vote" class="tool vote">Vote to wipe <span id="votecount">0/2</span></button></div>
   </div>
   <p class="hint">Click or drag to draw together. Be nice - it's shared, and it wipes daily (or when enough people vote).</p>
 

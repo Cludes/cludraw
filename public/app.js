@@ -1,9 +1,10 @@
 'use strict';
-const CW = 1200, CH = 1200, SCALE = CW / 1000;
+const CW = 1500, CH = 1500, SCALE = CW / 1000;
 let brushes = [3, 7, 14, 28], curW = 7, curHex = '#e50000', voted = false, drawing = false, curId = null, cur = null, buf = [], localN = 0;
 const strokes = new Map(); let mine = [];
 const view = document.getElementById('c'), ctx = view.getContext('2d');
 const $ = id => document.getElementById(id);
+const ROOM = (new URLSearchParams(location.search).get('room') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 24);
 view.width = CW; view.height = CH;
 function clear() { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, CW, CH); }
 clear();
@@ -78,7 +79,7 @@ function renderPresence(users) { $('sbcount').textContent = users.length; $('sbl
 
 let ws = null, myName = '', banned = false;
 function connect() {
-  ws = new WebSocket((location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws?name=' + encodeURIComponent(myName));
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws?name=' + encodeURIComponent(myName) + (ROOM ? '&room=' + ROOM : ''));
   ws.onopen = () => { $('status').textContent = 'live'; $('status').className = 'on'; };
   ws.onclose = () => { if (banned) return; $('status').textContent = 'reconnecting…'; $('status').className = 'off'; setTimeout(connect, 1500); };
   ws.onmessage = ev => {
@@ -97,6 +98,12 @@ function connect() {
 }
 
 $('report').addEventListener('click', () => { if (ws && ws.readyState === 1) { ws.send(JSON.stringify({ t: 'report' })); const r = $('report'), o = r.textContent; r.textContent = 'Reported'; r.disabled = true; setTimeout(() => { r.textContent = o; r.disabled = false; }, 2500); } });
+
+// rooms + download
+$('roomlabel').textContent = ROOM ? 'private room: ' + ROOM : 'public board';
+$('newroom').addEventListener('click', () => { location.href = location.pathname + '?room=' + Math.random().toString(36).slice(2, 8); });
+$('copylink').addEventListener('click', () => { navigator.clipboard.writeText(location.href).then(() => { const b = $('copylink'), o = b.textContent; b.textContent = 'Copied'; setTimeout(() => b.textContent = o, 1500); }).catch(() => {}); });
+$('savepng').addEventListener('click', () => { const a = document.createElement('a'); a.href = view.toDataURL('image/png'); a.download = 'cludraw' + (ROOM ? '-' + ROOM : '') + '.png'; a.click(); });
 
 function join() {
   const v = $('nameinput').value.trim();

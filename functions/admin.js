@@ -8,7 +8,8 @@ export async function onRequest({ request, env }) {
   if (!env.ADMIN_KEY || url.searchParams.get('key') !== env.ADMIN_KEY) return new Response('forbidden', { status: 403 });
   const action = url.searchParams.get('action') || 'stats';
   const arg = url.searchParams.get('arg') || '';
-  const stub = env.CANVAS.get(env.CANVAS.idFromName('global'));
+  const room = (url.searchParams.get('room') || 'global').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 24) || 'global';
+  const stub = env.CANVAS.get(env.CANVAS.idFromName(room));
   const r = await stub.fetch(new Request('https://do/admin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, arg }) }));
   return new Response(await r.text(), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 }
