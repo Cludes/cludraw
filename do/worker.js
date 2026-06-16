@@ -50,7 +50,7 @@ export class Canvas {
       let name = cleanName(url.searchParams.get('name')); if (!name) name = 'anon' + Math.floor(Math.random() * 900 + 100);
       const { 0: client, 1: server } = new WebSocketPair();
       this.state.acceptWebSocket(server);
-      server.serializeAttachment({ ip, name, country, tok: RL_CAP, ts: Date.now(), voted: false });
+      server.serializeAttachment({ ip, name, country, tok: RL_CAP, ts: Date.now(), voted: false, cid: Math.random().toString(36).slice(2, 8) });
       if (this.banned.has(ip)) { try { server.send(JSON.stringify({ t: 'banned' })); server.close(4003, 'banned'); } catch {} return new Response(null, { status: 101, webSocket: client }); }
       server.send(JSON.stringify({ t: 'init', swatches: SWATCHES, brushes: BRUSHES, you: { name, country } }));
       for (let i = 0; i < this.strokes.length; i += 350) server.send(JSON.stringify({ t: 'load', strokes: this.strokes.slice(i, i + 350).map(s => ({ c: s.c, w: s.w, p: s.p })) }));
@@ -86,9 +86,10 @@ export class Canvas {
     } else if (d.t === 'e') { this.active.delete(d.id); }
     else if (d.t === 'vote') { att.voted = !att.voted; ws.serializeAttachment(att); this.tally(); }
     else if (d.t === 'report') { this.reports.push({ ts: Date.now(), by: att.ip, name: att.name }); if (this.reports.length > 300) this.reports.shift(); this.state.storage.put('reports', this.reports); }
+    else if (d.t === 'cur') { const x = +d.x, y = +d.y; if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return; const out = JSON.stringify({ t: 'cur', id: att.cid, n: att.name, x, y }); for (const s of this.state.getWebSockets()) if (s !== ws) { try { s.send(out); } catch {} } }
   }
 
-  webSocketClose() { this.announce(); this.presence(); }
+  webSocketClose(ws) { const a = ws.deserializeAttachment(); if (a && a.cid) this.broadcast({ t: 'curgone', id: a.cid }); this.announce(); this.presence(); }
   webSocketError() { this.announce(); }
 
   broadcast(o) { const m = JSON.stringify(o); for (const s of this.state.getWebSockets()) { try { s.send(m); } catch {} } }

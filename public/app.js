@@ -42,11 +42,23 @@ function buildUI(swatches) {
 
 function pt(e) { const r = view.getBoundingClientRect(); let x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; x = x < 0 ? 0 : x > 1 ? 1 : x; y = y < 0 ? 0 : y > 1 ? 1 : y; return [Math.round(x * 1e4) / 1e4, Math.round(y * 1e4) / 1e4]; }
 function flush(end) { if (buf.length >= 2 && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 's', id: curId, c: cur.c, w: cur.w, p: buf })); buf = []; if (end && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'e', id: curId })); }
-view.addEventListener('pointerdown', e => { drawing = true; try { view.setPointerCapture(e.pointerId); } catch {} curId = 'L' + (localN++); cur = { c: curHex, w: curW, has: false }; active.set(curId, cur); const [x, y] = pt(e); seg(cur, [x, y]); buf = [x, y]; });
-view.addEventListener('pointermove', e => { if (!drawing) return; const [x, y] = pt(e); seg(cur, [x, y]); buf.push(x, y); });
+view.addEventListener('pointerdown', e => { drawing = true; try { view.setPointerCapture(e.pointerId); } catch {} curId = 'L' + (localN++); cur = { c: curHex, w: curW, has: false }; active.set(curId, cur); const [x, y] = pt(e); sendCur(x, y); seg(cur, [x, y]); buf = [x, y]; });
+view.addEventListener('pointermove', e => { const [x, y] = pt(e); sendCur(x, y); if (!drawing) return; seg(cur, [x, y]); buf.push(x, y); });
 addEventListener('pointerup', () => { if (!drawing) return; drawing = false; flush(true); });
 function tick() { if (drawing && buf.length >= 2) flush(false); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
+
+// ── remote cursors (you see others', never your own) ──
+let curT = 0;
+function sendCur(x, y) { const now = performance.now(); if (now - curT < 45) return; curT = now; if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'cur', x, y })); }
+const cursors = new Map();
+function cursorEl(id, name) {
+  const hue = [...id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360, col = `hsl(${hue},75%,55%)`;
+  const el = document.createElement('div'); el.className = 'rcur';
+  el.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 2 L2 15 L6 11 L9 17 L11.5 16 L8.5 10 L14 10 Z" fill="${col}" stroke="#fff" stroke-width="1"/></svg><span class="lab" style="background:${col}">${esc(name)}</span>`;
+  return el;
+}
+setInterval(() => { const now = performance.now(); for (const [id, c] of cursors) if (now - c.seen > 6000) { c.el.remove(); cursors.delete(id); } }, 2000);
 
 $('picker').addEventListener('input', e => setColor(e.target.value, null));
 $('eraser').addEventListener('click', () => { curHex = '#ffffff'; document.querySelectorAll('.sw').forEach(s => s.classList.remove('on')); $('eraser').classList.add('on'); });
@@ -70,6 +82,8 @@ function connect() {
     else if (d.t === 's') { let st = active.get(d.id); if (!st) { st = { c: d.c, w: d.w, has: false }; active.set(d.id, st); } seg(st, d.p); }
     else if (d.t === 'n') { $('online').textContent = d.online; $('votecount').textContent = d.votes + '/' + d.need; }
     else if (d.t === 'presence') renderPresence(d.users);
+    else if (d.t === 'cur') { let c = cursors.get(d.id); if (!c) { c = { el: cursorEl(d.id, d.n) }; cursors.set(d.id, c); $('cursors').appendChild(c.el); } c.el.style.left = d.x * 100 + '%'; c.el.style.top = d.y * 100 + '%'; c.seen = performance.now(); }
+    else if (d.t === 'curgone') { const c = cursors.get(d.id); if (c) { c.el.remove(); cursors.delete(d.id); } }
     else if (d.t === 'reset') { clear(); active.clear(); voted = false; $('vote').classList.remove('voted'); }
     else if (d.t === 'banned') { banned = true; try { ws.close(); } catch {} $('blocked').classList.remove('hidden'); }
   };
