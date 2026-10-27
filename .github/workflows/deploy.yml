@@ -10,11 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The action installs Wrangler 3.90 by default, which cannot read
+      # wrangler.jsonc and fails with "Missing entry-point".
       # 1) the companion Worker that hosts the Canvas Durable Object
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.153.0"
           workingDirectory: do
           command: deploy
       # 2) the Pages project (frontend + /ws function, bound to the DO)
@@ -22,4 +25,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.153.0"
           command: pages deploy --commit-dirty=true
